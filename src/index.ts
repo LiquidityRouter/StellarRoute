@@ -13,7 +13,21 @@ export interface RouteRequest {
 
 export async function findBestRoute(req: RouteRequest): Promise<SimulationResult> {
   const { sourceAsset, destAsset, amount, slippageTolerance = 0.005 } = req;
+
+  if (!sourceAsset?.code || !destAsset?.code) {
+    throw new Error('sourceAsset and destAsset must each specify an asset code');
+  }
+  if (sourceAsset.code === destAsset.code && sourceAsset.issuer === destAsset.issuer) {
+    throw new Error('sourceAsset and destAsset must be different');
+  }
+
   const tradeAmount = parseFloat(amount);
+  if (!Number.isFinite(tradeAmount) || tradeAmount <= 0) {
+    throw new Error(`Invalid amount: ${amount}`);
+  }
+  if (!Number.isFinite(slippageTolerance) || slippageTolerance < 0 || slippageTolerance > 1) {
+    throw new Error(`Invalid slippageTolerance: ${slippageTolerance}`);
+  }
 
   // 1. Fetch orderbook for direct pair
   const orderbook = await fetchOrderbook(sourceAsset, destAsset);
@@ -85,4 +99,7 @@ async function main() {
   });
 }
 
-main().catch(console.error);
+main().catch(err => {
+  console.error(err);
+  process.exitCode = 1;
+});
